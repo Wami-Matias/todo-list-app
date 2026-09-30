@@ -1,161 +1,99 @@
-class TodoApp {
-    constructor() {
-        this.tasks = this.loadTasks();
-        this.currentFilter = 'all';
-        this.init();
-    }
+const STORAGE_KEY = 'todo-list-app-tasks';
+let tasks = loadTasks();
+let filter = 'all';
 
-    init() {
-        this.cacheElements();
-        this.bindEvents();
-        this.render();
-    }
+const form = document.querySelector('#taskForm');
+const input = document.querySelector('#taskInput');
+const list = document.querySelector('#taskList');
+const empty = document.querySelector('#emptyState');
+const taskCount = document.querySelector('#taskCount');
+const completedCount = document.querySelector('#completedCount');
+const clearButton = document.querySelector('#clearCompleted');
 
-    cacheElements() {
-        this.$taskInput = document.getElementById('taskInput');
-        this.$addBtn = document.getElementById('addBtn');
-        this.$taskList = document.getElementById('taskList');
-        this.$emptyState = document.querySelector('.empty-state');
-        this.$totalTasks = document.getElementById('totalTasks');
-        this.$completedTasks = document.getElementById('completedTasks');
-        this.$clearBtn = document.getElementById('clearBtn');
-        this.$filterBtns = document.querySelectorAll('.filter-btn');
-    }
-
-    bindEvents() {
-        this.$addBtn.addEventListener('click', () => this.addTask());
-        this.$taskInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') this.addTask();
-        });
-        this.$clearBtn.addEventListener('click', () => this.clearCompleted());
-        this.$filterBtns.forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                this.setFilter(e.target.dataset.filter);
-            });
-        });
-    }
-
-    addTask() {
-        const text = this.$taskInput.value.trim();
-        
-        if (!text) {
-            alert('Por favor, adiciona uma tarefa!');
-            return;
-        }
-
-        const task = {
-            id: Date.now(),
-            text: text,
-            completed: false,
-            createdAt: new Date().toLocaleString('pt-AO')
-        };
-
-        this.tasks.push(task);
-        this.saveTasks();
-        this.$taskInput.value = '';
-        this.$taskInput.focus();
-        this.render();
-    }
-
-    deleteTask(id) {
-        if (confirm('Tens a certeza que queres apagar?')) {
-            this.tasks = this.tasks.filter(task => task.id !== id);
-            this.saveTasks();
-            this.render();
-        }
-    }
-
-    toggleTask(id) {
-        const task = this.tasks.find(t => t.id === id);
-        if (task) {
-            task.completed = !task.completed;
-            this.saveTasks();
-            this.render();
-        }
-    }
-
-    clearCompleted() {
-        const completedCount = this.tasks.filter(t => t.completed).length;
-        
-        if (completedCount === 0) {
-            alert('Não há tarefas completas para apagar!');
-            return;
-        }
-
-        if (confirm(`Apagar ${completedCount} tarefa(s) completa(s)?`)) {
-            this.tasks = this.tasks.filter(t => !t.completed);
-            this.saveTasks();
-            this.render();
-        }
-    }
-
-    setFilter(filter) {
-        this.currentFilter = filter;
-        this.$filterBtns.forEach(btn => {
-            btn.classList.toggle('active', btn.dataset.filter === filter);
-        });
-        this.render();
-    }
-
-    getFilteredTasks() {
-        switch (this.currentFilter) {
-            case 'active':
-                return this.tasks.filter(t => !t.completed);
-            case 'completed':
-                return this.tasks.filter(t => t.completed);
-            default:
-                return this.tasks;
-        }
-    }
-
-    updateStats() {
-        const total = this.tasks.length;
-        const completed = this.tasks.filter(t => t.completed).length;
-        
-        this.$totalTasks.textContent = `${total} tarefa${total !== 1 ? 's' : ''}`;
-        this.$completedTasks.textContent = `${completed} completa${completed !== 1 ? 's' : ''}`;
-        
-        this.$clearBtn.disabled = completed === 0;
-    }
-
-    render() {
-        const filtered = this.getFilteredTasks();
-        this.$taskList.innerHTML = filtered.map(task => `
-            <li class="task-item ${task.completed ? 'completed' : ''}">
-                <input 
-                    type="checkbox" 
-                    class="checkbox" 
-                    ${task.completed ? 'checked' : ''}
-                    onchange="app.toggleTask(${task.id})"
-                >
-                <span class="task-text">${this.escapeHtml(task.text)}</span>
-                <button class="delete-btn" onclick="app.deleteTask(${task.id})">
-                    Apagar
-                </button>
-            </li>
-        `).join('');
-
-        const hasAnyTasks = this.tasks.length > 0;
-        this.$emptyState.classList.toggle('show', !hasAnyTasks);
-
-        this.updateStats();
-    }
-
-    saveTasks() {
-        localStorage.setItem('tasks', JSON.stringify(this.tasks));
-    }
-
-    loadTasks() {
-        const saved = localStorage.getItem('tasks');
-        return saved ? JSON.parse(saved) : [];
-    }
-
-    escapeHtml(text) {
-        const div = document.createElement('div');
-        div.textContent = text;
-        return div.innerHTML;
-    }
+function loadTasks() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
+    return Array.isArray(saved) ? saved : [];
+  } catch {
+    return [];
+  }
 }
 
-// Inicializa a app
-const app = new TodoApp();
+function saveTasks() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks));
+}
+
+function escapeHtml(value) {
+  const div = document.createElement('div');
+  div.textContent = value;
+  return div.innerHTML;
+}
+
+function visibleTasks() {
+  if (filter === 'active') return tasks.filter(task => !task.completed);
+  if (filter === 'completed') return tasks.filter(task => task.completed);
+  return tasks;
+}
+
+function render() {
+  const shown = visibleTasks();
+  list.innerHTML = shown.map(task => `
+    <li class="task ${task.completed ? 'completed' : ''}">
+      <input type="checkbox" ${task.completed ? 'checked' : ''} data-toggle="${task.id}" aria-label="Concluir tarefa">
+      <span class="task-text">${escapeHtml(task.text)}</span>
+      <button class="delete" type="button" data-delete="${task.id}">Apagar</button>
+    </li>
+  `).join('');
+
+  empty.textContent = tasks.length === 0 ? 'Ainda não tens tarefas.' : 'Nenhuma tarefa neste filtro.';
+  empty.classList.toggle('hidden', shown.length > 0);
+  const completed = tasks.filter(task => task.completed).length;
+  taskCount.textContent = `${tasks.length} tarefa${tasks.length === 1 ? '' : 's'}`;
+  completedCount.textContent = `${completed} concluída${completed === 1 ? '' : 's'}`;
+  clearButton.disabled = completed === 0;
+}
+
+form.addEventListener('submit', event => {
+  event.preventDefault();
+  const text = input.value.trim();
+  if (!text) return input.focus();
+  tasks.unshift({ id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now()), text, completed: false });
+  saveTasks();
+  input.value = '';
+  render();
+  input.focus();
+});
+
+list.addEventListener('click', event => {
+  const deleteButton = event.target.closest('[data-delete]');
+  if (deleteButton) {
+    tasks = tasks.filter(task => String(task.id) !== deleteButton.dataset.delete);
+    saveTasks();
+    render();
+  }
+});
+
+list.addEventListener('change', event => {
+  const checkbox = event.target.closest('[data-toggle]');
+  if (!checkbox) return;
+  const task = tasks.find(item => String(item.id) === checkbox.dataset.toggle);
+  if (task) task.completed = checkbox.checked;
+  saveTasks();
+  render();
+});
+
+document.querySelectorAll('[data-filter]').forEach(button => {
+  button.addEventListener('click', () => {
+    filter = button.dataset.filter;
+    document.querySelectorAll('[data-filter]').forEach(item => item.classList.toggle('active', item === button));
+    render();
+  });
+});
+
+clearButton.addEventListener('click', () => {
+  tasks = tasks.filter(task => !task.completed);
+  saveTasks();
+  render();
+});
+
+render();
