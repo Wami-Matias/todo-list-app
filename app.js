@@ -1,22 +1,161 @@
-const products=[
-{name:'Tropical',ingredients:'Ananás · Maracujá · Uva · Melancia',price:1500,image:'images/branding/squeezy-poster.jpg'},
-{name:'Red Fresh',ingredients:'Beterraba · Melancia',price:1500,image:'images/branding/squeezy-poster.jpg'},
-{name:'Pink Banana',ingredients:'Pitaya · Banana',price:1500,image:'images/branding/squeezy-poster.jpg'},
-{name:'Citrus Passion',ingredients:'Laranja · Maracujá',price:1500,image:'images/fruits/orange.jpg'},
-{name:'Banana Pine',ingredients:'Banana · Ananás',price:1500,image:'images/fruits/pineapple.jpg'},
-{name:'Pink Tropical',ingredients:'Banana · Maracujá · Melancia · Pitaya',price:1500,image:'images/fruits/passion.jpg'}];
-const fruits=[['Ananás','images/fruits/pineapple.jpg'],['Maracujá','images/fruits/passion.jpg'],['Uva','images/branding/squeezy-poster.jpg'],['Melancia','images/branding/squeezy-poster.jpg'],['Banana','images/fruits/mango.jpg'],['Pitaya','images/branding/squeezy-poster.jpg'],['Laranja','images/fruits/orange.jpg'],['Beterraba','images/branding/squeezy-poster.jpg']];
-const cart=[],chosen=new Set();const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];const money=n=>new Intl.NumberFormat('pt-AO').format(n)+' Kz';
-function renderProducts(){$('#products').innerHTML=products.map((p,i)=>`<article class="product reveal"><div class="product-img"><img src="${p.image}" alt="${p.name}" loading="lazy"><span class="badge">Mix Squeezy</span></div><div class="product-info"><h3>${p.name}</h3><p class="ingredients">${p.ingredients}</p><div class="product-bottom"><strong class="price">${money(p.price)}</strong><button class="add" data-add="${i}">+</button></div></div></article>`).join('');observe()}
-function renderFruits(){$('#fruits').innerHTML=fruits.map((f,i)=>`<button class="fruit" data-fruit="${i}"><img src="${f[1]}" alt="${f[0]}" loading="lazy"><span>${f[0]}</span></button>`).join('')}
-function add(item){const x=cart.find(v=>v.key===item.key);if(x)x.qty++;else cart.push({...item,qty:1});renderCart();toast(item.name+' adicionado ao pedido')}
-function renderCart(){$('#cartCount').textContent=cart.reduce((s,x)=>s+x.qty,0);$('#empty').style.display=cart.length?'none':'block';$('#checkout').style.display=cart.length?'block':'none';$('#cartItems').innerHTML=cart.map((x,i)=>`<div class="cart-row"><img src="${x.image}" alt=""><div><h3>${x.name}</h3><p>${money(x.price)} · ${x.details||'Mix'}</p><div class="qty"><button data-q="${i}" data-d="-1">−</button><b>${x.qty}</b><button data-q="${i}" data-d="1">+</button></div></div><b class="row-total">${money(x.price*x.qty)}</b></div>`).join('');update()}
-function sub(){return cart.reduce((s,x)=>s+x.price*x.qty,0)}function fee(){if($('#type').value==='pickup')return 0;const o=$('#zone').selectedOptions[0];return o&&o.value?Number(o.dataset.fee):null}function update(){const s=sub(),f=fee();$('#subtotal').textContent=money(s);$('#delivery').textContent=f===null?'—':($('#zone').value&&$('#zone').selectedOptions[0].textContent.startsWith('Patriota')?'A confirmar':money(f));$('#total').textContent=f===null?money(s):money(s+f)}
-function openCart(){document.body.classList.add('open')}function closeCart(){document.body.classList.remove('open')}function toast(t){const e=$('#toast');e.textContent=t;e.classList.add('show');clearTimeout(window.tt);window.tt=setTimeout(()=>e.classList.remove('show'),2200)}
-function observe(){const els=$$('.reveal:not(.watched)');if(!('IntersectionObserver'in window)){els.forEach(e=>e.classList.add('visible'));return}const io=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('visible');io.unobserve(e.target)}}),{threshold:.12});els.forEach(e=>{e.classList.add('watched');io.observe(e)})}
-renderProducts();renderFruits();renderCart();observe();
-document.addEventListener('click',e=>{const a=e.target.closest('[data-add]');if(a){const p=products[+a.dataset.add];add({...p,key:p.name,details:p.ingredients});return}const q=e.target.closest('[data-q]');if(q){const i=+q.dataset.q;cart[i].qty+=+q.dataset.d;if(cart[i].qty<1)cart.splice(i,1);renderCart();return}const f=e.target.closest('[data-fruit]');if(f){const i=+f.dataset.fruit;chosen.has(i)?chosen.delete(i):chosen.add(i);f.classList.toggle('selected',chosen.has(i));const names=[...chosen].map(i=>fruits[i][0]);$('#selected').textContent=names.length?names.join(' · '):'Escolhe pelo menos 2 frutas';$('#addCustom').disabled=names.length<2;return}if(e.target.closest('[data-open-cart]'))openCart();if(e.target.closest('[data-scroll-mixes]')){closeCart();document.querySelector('#mixes').scrollIntoView({behavior:'smooth'})}});
-$('#cartBtn').onclick=openCart;$('#closeCart').onclick=closeCart;$('#overlay').onclick=closeCart;$('#addCustom').onclick=()=>{const names=[...chosen].map(i=>fruits[i][0]);add({key:'custom:'+names.sort().join(','),name:'Squeezy Personalizado',price:1500,image:'images/branding/squeezy-poster.jpg',details:names.join(' · ')});openCart()};$('#zone').onchange=update;$('#type').onchange=()=>{const d=$('#type').value==='delivery';$('#zoneWrap').style.display=d?'grid':'none';$('#addressWrap').style.display=d?'grid':'none';update()};
-$('#send').onclick=()=>{if(!cart.length)return toast('Adiciona um produto primeiro.');const name=$('#name').value.trim(),phone=$('#phone').value.trim(),type=$('#type').value,zone=$('#zone').value,address=$('#address').value.trim(),notes=$('#notes').value.trim();if(!name||!phone)return toast('Preenche o nome e o telefone.');if(type==='delivery'&&(!zone||!address))return toast('Preenche a zona e o endereço.');const s=sub(),f=fee(),pat=zone.startsWith('Patriota');let lines=cart.map(x=>`${x.qty}× ${x.name} — ${money(x.price*x.qty)} (${x.details||'Mix'})`).join('\n');let msg=`NOVO PEDIDO — SQUEEZY DAY\n\nNome: ${name}\nTelefone: ${phone}\n\nITENS:\n${lines}\n\nSubtotal: ${money(s)}\n`;if(type==='pickup')msg+='Pedido: LEVANTAMENTO\n';else msg+=`Entrega: ${zone}${pat?' — valor a confirmar':''}\nEndereço: ${address}\nEntrega: ${pat?'valor a confirmar':money(f)}\n`;msg+=`Total: ${pat?money(s):money(s+f)}\n`;if(notes)msg+=`Observações: ${notes}\n`;window.open('https://wa.me/244926549027?text='+encodeURIComponent(msg),'_blank')};
-$('#menuBtn').onclick=()=>$('#mobileMenu').classList.toggle('open');$$('#mobileMenu a').forEach(a=>a.onclick=()=>$('#mobileMenu').classList.remove('open'));
-const stage=$('#heroStage');if(stage&&!matchMedia('(prefers-reduced-motion:reduce)').matches)stage.onmousemove=e=>{const r=stage.getBoundingClientRect(),x=e.clientX/r.width-r.left/r.width-.5,y=e.clientY/r.height-r.top/r.height-.5;$$('.float').forEach(el=>{const d=+el.dataset.depth||1;el.style.marginLeft=(x*15*d)+'px';el.style.marginTop=(y*15*d)+'px'})};
+class TodoApp {
+    constructor() {
+        this.tasks = this.loadTasks();
+        this.currentFilter = 'all';
+        this.init();
+    }
+
+    init() {
+        this.cacheElements();
+        this.bindEvents();
+        this.render();
+    }
+
+    cacheElements() {
+        this.$taskInput = document.getElementById('taskInput');
+        this.$addBtn = document.getElementById('addBtn');
+        this.$taskList = document.getElementById('taskList');
+        this.$emptyState = document.querySelector('.empty-state');
+        this.$totalTasks = document.getElementById('totalTasks');
+        this.$completedTasks = document.getElementById('completedTasks');
+        this.$clearBtn = document.getElementById('clearBtn');
+        this.$filterBtns = document.querySelectorAll('.filter-btn');
+    }
+
+    bindEvents() {
+        this.$addBtn.addEventListener('click', () => this.addTask());
+        this.$taskInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') this.addTask();
+        });
+        this.$clearBtn.addEventListener('click', () => this.clearCompleted());
+        this.$filterBtns.forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                this.setFilter(e.target.dataset.filter);
+            });
+        });
+    }
+
+    addTask() {
+        const text = this.$taskInput.value.trim();
+        
+        if (!text) {
+            alert('Por favor, adiciona uma tarefa!');
+            return;
+        }
+
+        const task = {
+            id: Date.now(),
+            text: text,
+            completed: false,
+            createdAt: new Date().toLocaleString('pt-AO')
+        };
+
+        this.tasks.push(task);
+        this.saveTasks();
+        this.$taskInput.value = '';
+        this.$taskInput.focus();
+        this.render();
+    }
+
+    deleteTask(id) {
+        if (confirm('Tens a certeza que queres apagar?')) {
+            this.tasks = this.tasks.filter(task => task.id !== id);
+            this.saveTasks();
+            this.render();
+        }
+    }
+
+    toggleTask(id) {
+        const task = this.tasks.find(t => t.id === id);
+        if (task) {
+            task.completed = !task.completed;
+            this.saveTasks();
+            this.render();
+        }
+    }
+
+    clearCompleted() {
+        const completedCount = this.tasks.filter(t => t.completed).length;
+        
+        if (completedCount === 0) {
+            alert('Não há tarefas completas para apagar!');
+            return;
+        }
+
+        if (confirm(`Apagar ${completedCount} tarefa(s) completa(s)?`)) {
+            this.tasks = this.tasks.filter(t => !t.completed);
+            this.saveTasks();
+            this.render();
+        }
+    }
+
+    setFilter(filter) {
+        this.currentFilter = filter;
+        this.$filterBtns.forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.filter === filter);
+        });
+        this.render();
+    }
+
+    getFilteredTasks() {
+        switch (this.currentFilter) {
+            case 'active':
+                return this.tasks.filter(t => !t.completed);
+            case 'completed':
+                return this.tasks.filter(t => t.completed);
+            default:
+                return this.tasks;
+        }
+    }
+
+    updateStats() {
+        const total = this.tasks.length;
+        const completed = this.tasks.filter(t => t.completed).length;
+        
+        this.$totalTasks.textContent = `${total} tarefa${total !== 1 ? 's' : ''}`;
+        this.$completedTasks.textContent = `${completed} completa${completed !== 1 ? 's' : ''}`;
+        
+        this.$clearBtn.disabled = completed === 0;
+    }
+
+    render() {
+        const filtered = this.getFilteredTasks();
+        this.$taskList.innerHTML = filtered.map(task => `
+            <li class="task-item ${task.completed ? 'completed' : ''}">
+                <input 
+                    type="checkbox" 
+                    class="checkbox" 
+                    ${task.completed ? 'checked' : ''}
+                    onchange="app.toggleTask(${task.id})"
+                >
+                <span class="task-text">${this.escapeHtml(task.text)}</span>
+                <button class="delete-btn" onclick="app.deleteTask(${task.id})">
+                    Apagar
+                </button>
+            </li>
+        `).join('');
+
+        const hasAnyTasks = this.tasks.length > 0;
+        this.$emptyState.classList.toggle('show', !hasAnyTasks);
+
+        this.updateStats();
+    }
+
+    saveTasks() {
+        localStorage.setItem('tasks', JSON.stringify(this.tasks));
+    }
+
+    loadTasks() {
+        const saved = localStorage.getItem('tasks');
+        return saved ? JSON.parse(saved) : [];
+    }
+
+    escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+}
+
+// Inicializa a app
+const app = new TodoApp();
